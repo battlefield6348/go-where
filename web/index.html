@@ -580,11 +580,23 @@
       // 清空舊 Marker
       markersGroup.clearLayers();
       
-      // 更新定位點
+      // 更新定位點 (設為可拖曳，供使用者微調精確位置)
       if (currentPosMarker) {
         currentPosMarker.setLatLng([lat, lng]);
       } else {
-        currentPosMarker = L.marker([lat, lng], {icon: originIcon}).addTo(map);
+        currentPosMarker = L.marker([lat, lng], {icon: originIcon, draggable: true}).addTo(map);
+        
+        // 監聽拖曳結束事件，更新 WASM 中的座標並更新介面
+        currentPosMarker.on('dragend', function(event) {
+          const marker = event.target;
+          const position = marker.getLatLng();
+          if (typeof goWhereUpdateCoords === 'function') {
+            goWhereUpdateCoords(position.lng, position.lat);
+            document.getElementById('loc-coords').innerText = `${position.lng.toFixed(4)}, ${position.lat.toFixed(4)}`;
+          }
+        });
+        
+        currentPosMarker.bindTooltip("可拖曳此標記微調起點", { permanent: false, direction: 'top' });
       }
       
       // 若無歷史，重設地圖中心
@@ -601,17 +613,13 @@
       
       // 繪製歷史站點與軌跡
       const latlngs = [];
+      let finalHistoryHTML = '';
       
-      // 加上起點
-      // 我們從第一個起點到後面所有點連線
-      // 如果有歷史，第一個起點可以暫時作為歷史軌跡的起點 (為了讓路線連貫，我們需要起點，但 Wasm 不會存初始定位點在 History 裡面，History 裡面都是 Spot。所以我們加起點到第一個 Spot 的連線。)
-      // 先抓取 localStorage 裡最早的歷史或者定位起點，或者就用歷史點連線：
-      // 我們把目前的歷史點一個個放進去
       state.history.forEach((node, index) => {
         const spot = node.spot;
         const transportIcon = node.transport === 'walking' ? '🚶' : (node.transport === 'cycling' ? '🚲' : '🚗');
         
-        // 放入坐標點
+        // 放入坐報點
         latlngs.push([spot.py, spot.px]);
         
         // 標記景點
@@ -619,19 +627,6 @@
           .addTo(markersGroup)
           .bindPopup(`<b>第 ${node.step} 站：${spot.name}</b><br>${spot.add}`);
           
-        historyHTML += `
-          <div class="history-item">
-            <span>第 ${node.step} 站：${spot.name}</span>
-            <span style="color: var(--text-sub);">${transportIcon} ${node.travel_time}m</span>
-          </div>
-        `;
-      });
-      
-      // 修正 historyHTML 初始化
-      let finalHistoryHTML = '';
-      state.history.forEach((node, index) => {
-        const spot = node.spot;
-        const transportIcon = node.transport === 'walking' ? '🚶' : (node.transport === 'cycling' ? '🚲' : '🚗');
         finalHistoryHTML += `
           <div class="history-item">
             <span>第 ${node.step} 站：${spot.name}</span>
@@ -640,7 +635,7 @@
         `;
       });
       
-      document.getElementById('history-list').innerHTML = finalHistoryHTML;
+      document.getElementById('history-list').innerHTML = finalHistoryHTML || `<p style="font-size:12px; color: var(--text-sub); text-align:center; padding: 10px;">尚未開始探險</p>`;
       document.getElementById('loc-status').innerText = `目前位置：${state.history[state.history.length-1].spot.name}`;
       
       // 繪製軌跡連線
@@ -713,6 +708,8 @@
           if (typeof goWhereUpdateCoords === 'function') {
             goWhereUpdateCoords(lng, lat);
             syncStateFromWasm();
+            // 🎬 飛入精確位置並放大至街區層級 (Level 16)
+            map.flyTo([lat, lng], 16);
           }
           resetLocateBtn();
         },
