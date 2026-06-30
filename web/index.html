@@ -539,6 +539,14 @@
       
       // 載入當前 LocalStorage 狀態並更新 UI 地圖
       syncStateFromWasm();
+      
+      // 如果當前沒有任何歷史記錄 (新探險)，自動開啟 GPS 定位
+      if (typeof goWhereGetState === 'function') {
+        const state = JSON.parse(goWhereGetState());
+        if (!state.history || state.history.length === 0) {
+          triggerGPSLocate(true);
+        }
+      }
     }).catch(err => {
       console.error("WASM load fail:", err);
       document.querySelector('#loader p').innerHTML = "<span style='color:#ef4444'>核心載入失敗！請確認 main.wasm 存在並以網頁伺服器開啟。</span>";
@@ -705,14 +713,14 @@
     
     updateRadiusValue(); // 初始化半徑顯示
 
-    // 定位按鈕
-    document.getElementById('btn-locate').addEventListener('click', () => {
+    // 定位邏輯主函式
+    function triggerGPSLocate(isAuto = false) {
       const btn = document.getElementById('btn-locate');
-      btn.innerText = "定位中...";
+      btn.innerText = isAuto ? "自動定位中..." : "定位中...";
       btn.disabled = true;
       
       if (!navigator.geolocation) {
-        alert("瀏覽器不支援 GPS 定位，使用預設值。");
+        if (!isAuto) alert("瀏覽器不支援 GPS 定位，使用預設值。");
         resetLocateBtn();
         return;
       }
@@ -730,11 +738,19 @@
           resetLocateBtn();
         },
         (err) => {
-          alert("定位失敗！請開啟位置授權。將使用預設台北車站。");
+          if (!isAuto) {
+            alert("定位失敗！請確認瀏覽器已開啟位置授權。將使用預設台北車站。");
+          }
+          console.warn("GPS 定位失敗：", err);
           resetLocateBtn();
         },
         { enableHighAccuracy: true, timeout: 8000 }
       );
+    }
+
+    // 定位按鈕
+    document.getElementById('btn-locate').addEventListener('click', () => {
+      triggerGPSLocate(false);
     });
 
     function resetLocateBtn() {
