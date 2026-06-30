@@ -132,12 +132,14 @@
     /* Transport selector */
     .transport-selector {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-bottom: 20px;
     }
 
     .transport-option {
-      flex: 1;
+      flex: 1 1 calc(33.333% - 6px);
+      min-width: 80px;
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--glass-border);
       color: var(--text-sub);
@@ -461,6 +463,14 @@
         <span class="icon">🚗</span>
         <span class="label">汽車</span>
       </button>
+      <button class="transport-option" data-mode="scooter">
+        <span class="icon">🛵</span>
+        <span class="label">機車</span>
+      </button>
+      <button class="transport-option" data-mode="transit">
+        <span class="icon">🚊</span>
+        <span class="label">大眾運輸</span>
+      </button>
       <button class="transport-option" data-mode="cycling">
         <span class="icon">🚲</span>
         <span class="label">單車</span>
@@ -617,7 +627,11 @@
       
       state.history.forEach((node, index) => {
         const spot = node.spot;
-        const transportIcon = node.transport === 'walking' ? '🚶' : (node.transport === 'cycling' ? '🚲' : '🚗');
+        let transportIcon = '🚗';
+        if (node.transport === 'walking') transportIcon = '🚶';
+        else if (node.transport === 'cycling') transportIcon = '🚲';
+        else if (node.transport === 'scooter') transportIcon = '🛵';
+        else if (node.transport === 'transit') transportIcon = '🚊';
         
         // 放入坐報點
         latlngs.push([spot.py, spot.px]);
@@ -682,6 +696,8 @@
       let speedKmh = 60.0;
       if (currentTransport === 'walking') speedKmh = 5.0;
       else if (currentTransport === 'cycling') speedKmh = 15.0;
+      else if (currentTransport === 'scooter') speedKmh = 40.0;
+      else if (currentTransport === 'transit') speedKmh = 30.0;
       
       const radius = (speedKmh * (timeVal / 60)).toFixed(1);
       document.getElementById('radius-val').innerText = radius;

@@ -38,6 +38,10 @@ func DrawNextSpot(currentLng, currentLat float64, transport string, travelTimeMi
 		speedKmh = 5.0
 	case "cycling":
 		speedKmh = 15.0
+	case "scooter":
+		speedKmh = 40.0
+	case "transit":
+		speedKmh = 30.0
 	default: // driving
 		speedKmh = 60.0
 	}
