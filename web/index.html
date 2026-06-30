@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>GoWhere | 旅遊盲盒與隨機公路冒險</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="用旅遊盲盒開啟你的公路旅行！隨機抽取景點，串起一整天的冒險路線">
+  
+  <!-- Leaflet.js CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --glass-bg: rgba(15, 23, 42, 0.78);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --primary: #00f5d4;
+      --primary-glow: rgba(0, 245, 212, 0.4);
+      --accent: #7b2cbf;
+      --accent-glow: rgba(123, 44, 191, 0.4);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+      z-index: 1;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Glassmorphism Control Panel */
+    .control-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      width: 360px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s ease;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .brand h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), #9d4edd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section-title {
+      font-size: 14px;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .location-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .location-info p {
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+    .location-info h4 {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .btn-locate {
+      background: rgba(0, 245, 212, 0.1);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .btn-locate:hover {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    /* Transport selector */
+    .transport-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .transport-option {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      color: var(--text-sub);
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .transport-option:hover {
+      border-color: var(--primary);
+      color: var(--text-main);
+    }
+
+    .transport-option.active {
+      background: rgba(0, 245, 212, 0.08);
+      border-color: var(--primary);
+      color: var(--primary);
+      box-shadow: 0 0 8px var(--primary-glow);
+    }
+
+    .transport-option span.icon {
+      font-size: 18px;
+    }
+    .transport-option span.label {
+      font-size: 11px;
+    }
+
+    /* Time selector */
+    .time-selector {
+      margin-bottom: 24px;
+    }
+
+    .time-slider {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+      margin: 12px 0;
+    }
+
+    .time-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+
+    /* Giant Draw Button */
+    .btn-draw {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent), #9d4edd);
+      border: none;
+      color: #fff;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px var(--accent-glow);
+      letter-spacing: 1px;
+    }
+
+    .btn-draw:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(157, 78, 237, 0.6);
+      filter: brightness(1.1);
+    }
+
+    .btn-draw:active {
+      transform: translateY(1px);
+    }
+
+    /* Blind Box Popup Card */
+    .spot-card {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      z-index: 10;
+      width: 380px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      transform: translateY(120%);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .spot-card.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .spot-img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background-color: #1e293b;
+    }
+
+    .spot-content {
+      padding: 20px;
+    }
+
+    .spot-tag {
+      display: inline-block;
+      background: rgba(123, 44, 191, 0.15);
+      color: #c77dff;
+      border: 1px solid rgba(123, 44, 191, 0.3);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .spot-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .spot-desc {
+      font-size: 13px;
+      color: var(--text-sub);
+      line-height: 1.5;
+      margin-bottom: 16px;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    .spot-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-action {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .btn-confirm {
+      background: var(--primary);
+      border: none;
+      color: #000;
+    }
+    .btn-confirm:hover {
+      box-shadow: 0 0 10px var(--primary-glow);
+      filter: brightness(1.1);
+    }
+
+    .btn-cancel {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+    }
+    .btn-cancel:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* History & Reset button */
+    .history-panel {
+      margin-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 16px;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .history-list {
+      max-height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      background: rgba(255,255,255,0.02);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .btn-reset {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-reset:hover {
+      text-decoration: underline;
+    }
+
+    /* Radar scan effect overlays */
+    .radar-circle {
+      border: 2px solid var(--accent);
+      background: rgba(123, 44, 191, 0.1);
+      border-radius: 50%;
+      position: absolute;
+      z-index: 5;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+    }
+
+    @keyframes radar-animation {
+      0% { width: 0px; height: 0px; opacity: 0.8; }
+      100% { width: 400px; height: 400px; opacity: 0; }
+    }
+
+    /* Flowing path custom class for Leaflet */
+    .flowing-path {
+      stroke-dasharray: 8, 8;
+      animation: dash 30s linear infinite;
+    }
+
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -1000;
+      }
+    }
+
+    /* Loader */
+    .wasm-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: var(--bg-dark);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.5s ease;
+    }
+    .loader-spinner {
+      border: 4px solid rgba(255,255,255,0.1);
+      border-left-color: var(--primary);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- WASM loading screen -->
+  <div id="loader" class="wasm-loader">
+    <div class="loader-spinner"></div>
+    <p>正在載入 Go WebAssembly 冒險核心...</p>
+  </div>
+
+  <!-- Leaflet Map -->
+  <div id="map"></div>
+
+  <!-- Left Sidebar Panel -->
+  <div class="control-panel">
+    <div class="brand">
+      <span style="font-size: 26px;">🎲</span>
+      <h1>GoWhere 旅遊盲盒</h1>
+    </div>
+
+    <!-- Location selection -->
+    <div class="section-title">起點座標定位</div>
+    <div class="location-box">
+      <div class="location-info">
+        <h4 id="loc-status">台北車站 (預設)</h4>
+        <p id="loc-coords">121.5170, 25.0470</p>
+      </div>
+      <button class="btn-locate" id="btn-locate">📡 GPS 定位</button>
+    </div>
+
+    <!-- Transport tool selection -->
+    <div class="section-title">選擇探險交通</div>
+    <div class="transport-selector">
+      <button class="transport-option active" data-mode="driving">
+        <span class="icon">🚗</span>
+        <span class="label">汽車</span>
+      </button>
+      <button class="transport-option" data-mode="cycling">
+        <span class="icon">🚲</span>
+        <span class="label">單車</span>
+      </button>
+      <button class="transport-option" data-mode="walking">
+        <span class="icon">🚶</span>
+        <span class="label">步行</span>
+      </button>
+    </div>
+
+    <!-- Maximum time -->
+    <div class="section-title">接受移動時間</div>
+    <div class="time-selector">
+      <input type="range" class="time-slider" id="time-slider" min="15" max="180" value="60" step="15">
+      <div class="time-display">
+        <span>限時: <strong id="time-val" style="color: var(--primary);">60</strong> 分鐘</span>
+        <span>預估半徑: <strong id="radius-val" style="color: var(--primary);">60</strong> km</span>
+      </div>
+    </div>
+
+    <!-- Draw Button -->
+    <button class="btn-draw" id="btn-draw">🎁 抽取旅遊盲盒</button>
+
+    <!-- History list -->
+    <div class="history-panel">
+      <div class="history-header">
+        <span class="section-title" style="margin:0;">今天探險軌跡</span>
+        <button class="btn-reset" id="btn-reset">重設路線</button>
+      </div>
+      <div class="history-list" id="history-list">
+        <!-- populated by js -->
+        <p style="font-size:12px; color: var(--text-sub); text-align:center; padding: 10px;">尚未開始探險</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Drawer Spot Detail Card -->
+  <div class="spot-card" id="spot-card">
+    <img src="" alt="景點照片" class="spot-img" id="spot-img">
+    <div class="spot-content">
+      <div class="spot-tag" id="spot-tag">⛰️ 知名景點</div>
+      <h3 class="spot-title" id="spot-title">景點名稱</h3>
+      <p class="spot-desc" id="spot-desc">景點介紹描述載入中...</p>
+      <div class="spot-actions">
+        <button class="btn-action btn-confirm" id="btn-confirm-spot">確認前往 ➔</button>
+        <button class="btn-action btn-cancel" id="btn-cancel-spot">換一個</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet.js JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- WASM Glue code -->
+  <script src="wasm_exec.js"></script>
+  
+  <script>
+    // 1. 初始化 Go WASM
+    const go = new Go();
+    WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
+      go.run(result.instance);
+      // 隱藏載入遮罩
+      document.getElementById('loader').style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('loader').style.display = 'none';
+      }, 500);
+      
+      // 載入當前 LocalStorage 狀態並更新 UI 地圖
+      syncStateFromWasm();
+    }).catch(err => {
+      console.error("WASM load fail:", err);
+      document.querySelector('#loader p').innerHTML = "<span style='color:#ef4444'>核心載入失敗！請確認 main.wasm 存在並以網頁伺服器開啟。</span>";
+    });
+
+    // 2. 初始化 Leaflet 地圖
+    // 使用 CartoDB Voyager 圖磚 (暗黑色調主題非常契合)
+    const map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false
+    }).setView([25.0470, 121.5170], 11);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20
+    }).addTo(map);
+
+    // 定義地圖圖示
+    const originIcon = L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div style="background-color: var(--primary); width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px var(--primary-glow)"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+
+    const spotIcon = L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div style="background-color: #9d4edd; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 12px rgba(157, 78, 237, 0.8); display: flex; align-items: center; justify-content: center; font-size: 10px;">📍</div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
+    });
+
+    let currentPosMarker = null;
+    let markersGroup = L.layerGroup().addTo(map);
+    let routePolyline = null;
+    let currentSelectedSpot = null;
+
+    // 3. UI 狀態同步與更新
+    function syncStateFromWasm() {
+      if (typeof goWhereGetState !== 'function') return;
+      const stateStr = goWhereGetState();
+      const state = JSON.parse(stateStr);
+      
+      const lng = state.current_coords[0];
+      const lat = state.current_coords[1];
+      
+      // 更新定位面板顯示
+      document.getElementById('loc-coords').innerText = `${lng.toFixed(4)}, ${lat.toFixed(4)}`;
+      
+      // 清空舊 Marker
+      markersGroup.clearLayers();
+      
+      // 更新定位點
+      if (currentPosMarker) {
+        currentPosMarker.setLatLng([lat, lng]);
+      } else {
+        currentPosMarker = L.marker([lat, lng], {icon: originIcon}).addTo(map);
+      }
+      
+      // 若無歷史，重設地圖中心
+      if (!state.history || state.history.length === 0) {
+        map.setView([lat, lng], 11);
+        document.getElementById('loc-status').innerText = "旅程出發點";
+        document.getElementById('history-list').innerHTML = `<p style="font-size:12px; color: var(--text-sub); text-align:center; padding: 10px;">尚未開始探險</p>`;
+        if (routePolyline) {
+          map.removeLayer(routePolyline);
+          routePolyline = null;
+        }
+        return;
+      }
+      
+      // 繪製歷史站點與軌跡
+      const latlngs = [];
+      
+      // 加上起點
+      // 我們從第一個起點到後面所有點連線
+      // 如果有歷史，第一個起點可以暫時作為歷史軌跡的起點 (為了讓路線連貫，我們需要起點，但 Wasm 不會存初始定位點在 History 裡面，History 裡面都是 Spot。所以我們加起點到第一個 Spot 的連線。)
+      // 先抓取 localStorage 裡最早的歷史或者定位起點，或者就用歷史點連線：
+      // 我們把目前的歷史點一個個放進去
+      state.history.forEach((node, index) => {
+        const spot = node.spot;
+        const transportIcon = node.transport === 'walking' ? '🚶' : (node.transport === 'cycling' ? '🚲' : '🚗');
+        
+        // 放入坐標點
+        latlngs.push([spot.py, spot.px]);
+        
+        // 標記景點
+        L.marker([spot.py, spot.px], {icon: spotIcon})
+          .addTo(markersGroup)
+          .bindPopup(`<b>第 ${node.step} 站：${spot.name}</b><br>${spot.add}`);
+          
+        historyHTML += `
+          <div class="history-item">
+            <span>第 ${node.step} 站：${spot.name}</span>
+            <span style="color: var(--text-sub);">${transportIcon} ${node.travel_time}m</span>
+          </div>
+        `;
+      });
+      
+      // 修正 historyHTML 初始化
+      let finalHistoryHTML = '';
+      state.history.forEach((node, index) => {
+        const spot = node.spot;
+        const transportIcon = node.transport === 'walking' ? '🚶' : (node.transport === 'cycling' ? '🚲' : '🚗');
+        finalHistoryHTML += `
+          <div class="history-item">
+            <span>第 ${node.step} 站：${spot.name}</span>
+            <span style="color: var(--text-sub);">${transportIcon} ${node.travel_time}m</span>
+          </div>
+        `;
+      });
+      
+      document.getElementById('history-list').innerHTML = finalHistoryHTML;
+      document.getElementById('loc-status').innerText = `目前位置：${state.history[state.history.length-1].spot.name}`;
+      
+      // 繪製軌跡連線
+      if (routePolyline) {
+        map.removeLayer(routePolyline);
+      }
+      
+      if (latlngs.length > 0) {
+        routePolyline = L.polyline(latlngs, {
+          color: '#9d4edd',
+          weight: 4,
+          opacity: 0.8,
+          className: 'flowing-path'
+        }).addTo(map);
+        
+        // 移動視角以包含所有景點
+        const bounds = L.latLngBounds(latlngs);
+        bounds.extend([lat, lng]);
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    }
+
+    // 4. 事件監聽處理
+    // 交通工具選擇
+    let currentTransport = 'driving';
+    document.querySelectorAll('.transport-option').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.transport-option').forEach(b => b.classList.remove('active'));
+        const opt = e.currentTarget;
+        opt.classList.add('active');
+        currentTransport = opt.dataset.mode;
+        updateRadiusValue();
+      });
+    });
+
+    // 時間滑桿
+    const timeSlider = document.getElementById('time-slider');
+    timeSlider.addEventListener('input', updateRadiusValue);
+
+    function updateRadiusValue() {
+      const timeVal = parseInt(timeSlider.value);
+      document.getElementById('time-val').innerText = timeVal;
+      
+      let speedKmh = 60.0;
+      if (currentTransport === 'walking') speedKmh = 5.0;
+      else if (currentTransport === 'cycling') speedKmh = 15.0;
+      
+      const radius = (speedKmh * (timeVal / 60)).toFixed(1);
+      document.getElementById('radius-val').innerText = radius;
+    }
+    
+    updateRadiusValue(); // 初始化半徑顯示
+
+    // 定位按鈕
+    document.getElementById('btn-locate').addEventListener('click', () => {
+      const btn = document.getElementById('btn-locate');
+      btn.innerText = "定位中...";
+      btn.disabled = true;
+      
+      if (!navigator.geolocation) {
+        alert("瀏覽器不支援 GPS 定位，使用預設值。");
+        resetLocateBtn();
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          if (typeof goWhereUpdateCoords === 'function') {
+            goWhereUpdateCoords(lng, lat);
+            syncStateFromWasm();
+          }
+          resetLocateBtn();
+        },
+        (err) => {
+          alert("定位失敗！請開啟位置授權。將使用預設台北車站。");
+          resetLocateBtn();
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+
+    function resetLocateBtn() {
+      const btn = document.getElementById('btn-locate');
+      btn.innerText = "📡 GPS 定位";
+      btn.disabled = false;
+    }
+
+    // 隨機抽取盲盒按鈕
+    document.getElementById('btn-draw').addEventListener('click', () => {
+      if (typeof goWhereDraw !== 'function') return;
+      
+      const state = JSON.parse(goWhereGetState());
+      const originLng = state.current_coords[0];
+      const originLat = state.current_coords[1];
+      
+      // 1. 雷達掃描視覺特效
+      const radar = document.createElement('div');
+      radar.className = 'radar-circle';
+      radar.style.left = `${map.latLngToContainerPoint([originLat, originLng]).x}px`;
+      radar.style.top = `${map.latLngToContainerPoint([originLat, originLng]).y}px`;
+      document.body.appendChild(radar);
+      
+      radar.style.animation = 'radar-animation 1.5s ease-out forwards';
+      setTimeout(() => radar.remove(), 1500);
+
+      // 地圖短暫縮放震盪
+      map.zoomOut(0.5);
+      setTimeout(() => map.zoomIn(0.5), 300);
+
+      // 2. 呼叫 Wasm 進行抽選
+      const timeVal = parseInt(timeSlider.value);
+      const resStr = goWhereDraw(currentTransport, timeVal);
+      const res = JSON.parse(resStr);
+      
+      if (res.error) {
+        alert("抽選出錯: " + res.error);
+        return;
+      }
+      
+      currentSelectedSpot = res;
+      
+      // 3. 彈出景點卡片展示
+      setTimeout(() => {
+        document.getElementById('spot-title').innerText = res.name;
+        document.getElementById('spot-desc').innerText = res.description || "這裡有一段絕佳的探險回憶等著你去發掘！";
+        document.getElementById('spot-img').src = res.picture1 || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800";
+        document.getElementById('spot-card').classList.add('show');
+        
+        // 暫時在地圖上新增虛擬的未確認標記並平移過去
+        map.panTo([res.py, res.px]);
+      }, 800);
+    });
+
+    // 確認前往
+    document.getElementById('btn-confirm-spot').addEventListener('click', () => {
+      document.getElementById('spot-card').classList.remove('show');
+      currentSelectedSpot = null;
+      syncStateFromWasm();
+    });
+
+    // 換一個 (取消)
+    document.getElementById('btn-cancel-spot').addEventListener('click', () => {
+      document.getElementById('spot-card').classList.remove('show');
+      // 將 Wasm 中的最後一筆歷史刪除，並還原座標
+      if (typeof goWhereGetState === 'function') {
+        const state = JSON.parse(goWhereGetState());
+        if (state.history && state.history.length > 0) {
+          state.history.pop();
+          // 更新座標到上一個位置 (或起點)
+          let lastLng = 121.5170;
+          let lastLat = 25.0470;
+          if (state.history.length > 0) {
+            const lastSpot = state.history[state.history.length-1].spot;
+            lastLng = lastSpot.px;
+            lastLat = lastSpot.py;
+          }
+          state.current_coords = [lastLng, lastLat];
+          
+          localStorage.setItem("go_where_trip_state", JSON.stringify(state));
+        }
+      }
+      
+      // 重新載入頁面同步狀態
+      location.reload(); 
+    });
+
+    // 重設按鈕
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      if (confirm("確定要重設今天的探險路線嗎？這會清除所有足跡。")) {
+        if (typeof goWhereReset === 'function') {
+          goWhereReset();
+          syncStateFromWasm();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
