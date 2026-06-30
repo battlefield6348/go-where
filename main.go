@@ -69,7 +69,13 @@ func drawSpot(this js.Value, args []js.Value) any {
 	transport := args[0].String()
 	travelTime := args[1].Int()
 
-	spot, isFallback, err := geo.DrawNextSpot(currentTrip.CurrentCoords[0], currentTrip.CurrentCoords[1], transport, travelTime)
+	// 收集目前歷史紀錄中已去過的景點 ID
+	var excludedIDs []string
+	for _, node := range currentTrip.History {
+		excludedIDs = append(excludedIDs, node.Spot.ID)
+	}
+
+	spot, isFallback, err := geo.DrawNextSpot(currentTrip.CurrentCoords[0], currentTrip.CurrentCoords[1], transport, travelTime, excludedIDs)
 	if err != nil {
 		errMap := map[string]string{"error": err.Error()}
 		errJSON, _ := json.Marshal(errMap)

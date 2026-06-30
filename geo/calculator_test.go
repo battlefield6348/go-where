@@ -14,11 +14,26 @@ func TestHaversine(t *testing.T) {
 
 func TestDrawNextSpot(t *testing.T) {
 	// 當前起點台北車站附近，限速 60 分鐘開車應能抽中附近景點
-	spot, _, err := DrawNextSpot(121.517, 25.047, "driving", 60)
+	spot, _, err := DrawNextSpot(121.517, 25.047, "driving", 60, nil)
 	if err != nil {
 		t.Fatalf("Failed to draw spot: %s", err)
 	}
 	if spot.Name == "" {
 		t.Error("Drawn spot name is empty")
+	}
+}
+
+func TestDrawNextSpotWithExclusions(t *testing.T) {
+	// 設想我們在台北車站，若排除台北 101 (ID: 1)
+	// 應該不能抽中台北 101
+	excluded := []string{"1"}
+	for i := 0; i < 20; i++ {
+		spot, _, err := DrawNextSpot(121.517, 25.047, "driving", 60, excluded)
+		if err != nil {
+			t.Fatalf("Failed to draw spot: %s", err)
+		}
+		if spot.ID == "1" {
+			t.Error("Should not draw excluded spot台北 101 (ID 1)")
+		}
 	}
 }
