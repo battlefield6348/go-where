@@ -1,11 +1,13 @@
+//go:build js && wasm
+
 package main
 
 import (
 	"encoding/json"
-	"syscall/js"
 	"go-where/geo"
 	"go-where/model"
 	"go-where/storage"
+	"syscall/js"
 )
 
 var currentTrip *model.UserTrip
@@ -62,17 +64,17 @@ func drawSpot(this js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return js.ValueOf(false)
 	}
-	
+
 	transport := args[0].String()
 	travelTime := args[1].Int()
-	
+
 	spot, err := geo.DrawNextSpot(currentTrip.CurrentCoords[0], currentTrip.CurrentCoords[1], transport, travelTime)
 	if err != nil {
 		errMap := map[string]string{"error": err.Error()}
 		errJSON, _ := json.Marshal(errMap)
 		return js.ValueOf(string(errJSON))
 	}
-	
+
 	// 建立新的路線站點
 	newNode := model.TripNode{
 		Step:       len(currentTrip.History) + 1,
@@ -80,13 +82,13 @@ func drawSpot(this js.Value, args []js.Value) any {
 		Transport:  transport,
 		TravelTime: travelTime,
 	}
-	
+
 	currentTrip.History = append(currentTrip.History, newNode)
 	// 移動當前座標至抽中景點
 	currentTrip.CurrentCoords = [2]float64{spot.Px, spot.Py}
-	
+
 	storage.SaveTrip(currentTrip)
-	
+
 	spotJSON, _ := json.Marshal(spot)
 	return js.ValueOf(string(spotJSON))
 }
