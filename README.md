@@ -21,7 +21,7 @@ GOOS=js GOARCH=wasm go build -o web/main.wasm main.go
 
 ### 2. 啟動本地伺服器
 ```bash
-go run server.go
+go run cmd/server/main.go
 ```
 瀏覽：[http://localhost:8080](http://localhost:8080)。
 
