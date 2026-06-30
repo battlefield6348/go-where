@@ -800,7 +800,11 @@
       // 注意：現在 Wasm 傳回的是包含 spot 與 is_fallback 的物件包裹
       const spot = res.spot;
       const isFallback = res.is_fallback;
-      currentSelectedSpot = spot;
+      currentSelectedSpot = {
+        spot: spot,
+        transport: currentTransport,
+        travelTime: timeVal
+      };
       
       // 3. 彈出景點卡片展示
       setTimeout(() => {
@@ -825,6 +829,10 @@
 
     // 確認前往
     document.getElementById('btn-confirm-spot').addEventListener('click', () => {
+      if (currentSelectedSpot && typeof goWhereConfirm === 'function') {
+        const spotStr = JSON.stringify(currentSelectedSpot.spot);
+        goWhereConfirm(spotStr, currentSelectedSpot.transport, currentSelectedSpot.travelTime);
+      }
       document.getElementById('spot-card').classList.remove('show');
       currentSelectedSpot = null;
       syncStateFromWasm();
@@ -833,27 +841,9 @@
     // 換一個 (取消)
     document.getElementById('btn-cancel-spot').addEventListener('click', () => {
       document.getElementById('spot-card').classList.remove('show');
-      // 將 Wasm 中的最後一筆歷史刪除，並還原座標
-      if (typeof goWhereGetState === 'function') {
-        const state = JSON.parse(goWhereGetState());
-        if (state.history && state.history.length > 0) {
-          state.history.pop();
-          // 更新座標到上一個位置 (或起點)
-          let lastLng = 121.5170;
-          let lastLat = 25.0470;
-          if (state.history.length > 0) {
-            const lastSpot = state.history[state.history.length-1].spot;
-            lastLng = lastSpot.px;
-            lastLat = lastSpot.py;
-          }
-          state.current_coords = [lastLng, lastLat];
-          
-          localStorage.setItem("go_where_trip_state", JSON.stringify(state));
-        }
-      }
-      
-      // 重新載入頁面同步狀態
-      location.reload(); 
+      currentSelectedSpot = null;
+      // 不再重新載入頁面，只需重設地圖中心即可
+      syncStateFromWasm();
     });
 
     // 重設按鈕

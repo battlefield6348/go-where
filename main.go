@@ -28,6 +28,7 @@ func main() {
 	// 註冊 JS 回呼函式
 	js.Global().Set("goWhereGetState", js.FuncOf(getState))
 	js.Global().Set("goWhereDraw", js.FuncOf(drawSpot))
+	js.Global().Set("goWhereConfirm", js.FuncOf(confirmSpot))
 	js.Global().Set("goWhereReset", js.FuncOf(resetTrip))
 	js.Global().Set("goWhereUpdateCoords", js.FuncOf(updateCoords))
 
@@ -75,7 +76,31 @@ func drawSpot(this js.Value, args []js.Value) any {
 		return js.ValueOf(string(errJSON))
 	}
 
-	// 建立新的路線站點
+	// 包裝回傳結果，包含是否為超出範圍的備選景點
+	resp := map[string]any{
+		"spot":        spot,
+		"is_fallback": isFallback,
+	}
+	respJSON, _ := json.Marshal(resp)
+	return js.ValueOf(string(respJSON))
+}
+
+func confirmSpot(this js.Value, args []js.Value) any {
+	if len(args) < 3 {
+		return js.ValueOf(false)
+	}
+
+	spotJSON := args[0].String()
+	transport := args[1].String()
+	travelTime := args[2].Int()
+
+	var spot model.TouristSpot
+	err := json.Unmarshal([]byte(spotJSON), &spot)
+	if err != nil {
+		return js.ValueOf(false)
+	}
+
+	// 建立新的路線站點並存入歷史
 	newNode := model.TripNode{
 		Step:       len(currentTrip.History) + 1,
 		Spot:       spot,
@@ -88,12 +113,5 @@ func drawSpot(this js.Value, args []js.Value) any {
 	currentTrip.CurrentCoords = [2]float64{spot.Px, spot.Py}
 
 	storage.SaveTrip(currentTrip)
-
-	// 包裝回傳結果，包含是否為超出範圍的備選景點
-	resp := map[string]any{
-		"spot":        spot,
-		"is_fallback": isFallback,
-	}
-	respJSON, _ := json.Marshal(resp)
-	return js.ValueOf(string(respJSON))
+	return js.ValueOf(true)
 }
