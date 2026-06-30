@@ -47,6 +47,12 @@
       position: absolute;
       top: 0;
       left: 0;
+      background-color: #0f172a;
+    }
+
+    /* 將 OpenStreetMap 的標準圖磚轉換成深色質感風格，並保留完整的繁體中文地名與路名 */
+    .leaflet-tile {
+      filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(90%) saturate(80%);
     }
 
     /* Glassmorphism Control Panel */
@@ -553,14 +559,14 @@
     });
 
     // 2. 初始化 Leaflet 地圖
-    // 使用 CartoDB Voyager 圖磚 (暗黑色調主題非常契合)
+    // 使用標準 OpenStreetMap 圖磚 (在台灣提供 100% 繁體中文路名與地標)
     const map = L.map('map', {
       zoomControl: false,
       attributionControl: false
     }).setView([25.0470, 121.5170], 11);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
-      maxZoom: 20
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
     }).addTo(map);
 
     // 定義地圖圖示
