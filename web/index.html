@@ -797,17 +797,29 @@
         return;
       }
       
-      currentSelectedSpot = res;
+      // 注意：現在 Wasm 傳回的是包含 spot 與 is_fallback 的物件包裹
+      const spot = res.spot;
+      const isFallback = res.is_fallback;
+      currentSelectedSpot = spot;
       
       // 3. 彈出景點卡片展示
       setTimeout(() => {
-        document.getElementById('spot-title').innerText = res.name;
-        document.getElementById('spot-desc').innerText = res.description || "這裡有一段絕佳的探險回憶等著你去發掘！";
-        document.getElementById('spot-img').src = res.picture1 || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800";
+        document.getElementById('spot-title').innerText = spot.name;
+        document.getElementById('spot-desc').innerText = spot.description || "這裡有一段絕佳的探險回憶等著你去發掘！";
+        document.getElementById('spot-img').src = spot.picture1 || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800";
+        
+        // 根據是否為超出時間半徑的備選景點，更新標籤樣式與提示
+        const tagEl = document.getElementById('spot-tag');
+        if (isFallback) {
+          tagEl.innerHTML = '<span style="color: #ffb703; font-weight: bold;">⚠️ 附近無合適景點，已為您推薦最近備選</span>';
+        } else {
+          tagEl.innerHTML = '⛰️ 知名景點';
+        }
+        
         document.getElementById('spot-card').classList.add('show');
         
         // 暫時在地圖上新增虛擬的未確認標記並平移過去
-        map.panTo([res.py, res.px]);
+        map.panTo([spot.py, spot.px]);
       }, 800);
     });
 

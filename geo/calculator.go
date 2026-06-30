@@ -26,9 +26,10 @@ func Haversine(lng1, lat1, lng2, lat2 float64) float64 {
 }
 
 // DrawNextSpot 根據當前座標、交通工具及時間篩選景點，並隨機抽取下一站
-func DrawNextSpot(currentLng, currentLat float64, transport string, travelTimeMinutes int) (model.TouristSpot, error) {
+// 傳回值：景點、是否為超出範圍的備選景點 (isFallback)、錯誤
+func DrawNextSpot(currentLng, currentLat float64, transport string, travelTimeMinutes int) (model.TouristSpot, bool, error) {
 	if len(CachedSpots) == 0 {
-		return model.TouristSpot{}, errors.New("spots database is empty")
+		return model.TouristSpot{}, false, errors.New("spots database is empty")
 	}
 
 	// 依交通工具決定平均時速 (km/h)
@@ -89,11 +90,11 @@ func DrawNextSpot(currentLng, currentLat float64, transport string, travelTimeMi
 		
 		if limit > 0 {
 			chosenIdx := r.Intn(limit)
-			return sorted[chosenIdx].spot, nil
+			return sorted[chosenIdx].spot, true, nil
 		}
 		
-		return model.TouristSpot{}, errors.New("no spots available")
+		return model.TouristSpot{}, false, errors.New("no spots available")
 	}
 	
-	return candidates[r.Intn(len(candidates))], nil
+	return candidates[r.Intn(len(candidates))], false, nil
 }

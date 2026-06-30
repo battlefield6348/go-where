@@ -68,7 +68,7 @@ func drawSpot(this js.Value, args []js.Value) any {
 	transport := args[0].String()
 	travelTime := args[1].Int()
 
-	spot, err := geo.DrawNextSpot(currentTrip.CurrentCoords[0], currentTrip.CurrentCoords[1], transport, travelTime)
+	spot, isFallback, err := geo.DrawNextSpot(currentTrip.CurrentCoords[0], currentTrip.CurrentCoords[1], transport, travelTime)
 	if err != nil {
 		errMap := map[string]string{"error": err.Error()}
 		errJSON, _ := json.Marshal(errMap)
@@ -89,6 +89,11 @@ func drawSpot(this js.Value, args []js.Value) any {
 
 	storage.SaveTrip(currentTrip)
 
-	spotJSON, _ := json.Marshal(spot)
-	return js.ValueOf(string(spotJSON))
+	// 包裝回傳結果，包含是否為超出範圍的備選景點
+	resp := map[string]any{
+		"spot":        spot,
+		"is_fallback": isFallback,
+	}
+	respJSON, _ := json.Marshal(resp)
+	return js.ValueOf(string(respJSON))
 }
