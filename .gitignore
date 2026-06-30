@@ -1,3 +1,6 @@
 # Ignore hidden directories in the repository root.
 .*/
 !/.github/
+
+# Ignore compiled WebAssembly binaries
+web/main.wasm
