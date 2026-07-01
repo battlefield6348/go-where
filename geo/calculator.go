@@ -39,8 +39,13 @@ func DrawNextSpot(currentLng, currentLat float64, transport string, travelTimeMi
 	}
 
 	// 若使用者已造訪所有景點，則清空排除清單以防沒有景點可抽
-	if len(excludedIDs) >= len(CachedSpots) {
+	// 使用去重後的 Map 長度判斷，避免歷史重複或髒資料過早失效；且清空時保留最後一站，避免 wrap-around 時連續重複同一站
+	if len(excludedMap) >= len(CachedSpots) {
 		excludedMap = make(map[string]bool)
+		if len(excludedIDs) > 0 {
+			lastID := excludedIDs[len(excludedIDs)-1]
+			excludedMap[lastID] = true
+		}
 	}
 
 	// 依交通工具決定平均時速 (km/h)
