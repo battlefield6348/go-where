@@ -840,6 +840,9 @@
 
     // 換一個 (取消)
     document.getElementById('btn-cancel-spot').addEventListener('click', () => {
+      if (currentSelectedSpot && typeof goWhereReject === 'function') {
+        goWhereReject(currentSelectedSpot.spot.id);
+      }
       document.getElementById('spot-card').classList.remove('show');
       currentSelectedSpot = null;
       // 不再重新載入頁面，只需重設地圖中心即可

@@ -11,6 +11,7 @@ import (
 )
 
 var currentTrip *model.UserTrip
+var tempRejectedIDs []string
 
 func main() {
 	// 初始化載入狀態
@@ -31,6 +32,7 @@ func main() {
 	js.Global().Set("goWhereConfirm", js.FuncOf(confirmSpot))
 	js.Global().Set("goWhereReset", js.FuncOf(resetTrip))
 	js.Global().Set("goWhereUpdateCoords", js.FuncOf(updateCoords))
+	js.Global().Set("goWhereReject", js.FuncOf(rejectSpot))
 
 	// 保持 WASM 進程常駐
 	select {}
@@ -57,8 +59,17 @@ func resetTrip(this js.Value, args []js.Value) any {
 		CurrentCoords: [2]float64{121.517, 25.047},
 		History:       []model.TripNode{},
 	}
+	tempRejectedIDs = nil
 	storage.ClearTrip()
 	return js.ValueOf(true)
+}
+
+func rejectSpot(this js.Value, args []js.Value) any {
+	if len(args) >= 1 {
+		id := args[0].String()
+		tempRejectedIDs = append(tempRejectedIDs, id)
+	}
+	return nil
 }
 
 func drawSpot(this js.Value, args []js.Value) any {
@@ -74,6 +85,7 @@ func drawSpot(this js.Value, args []js.Value) any {
 	for _, node := range currentTrip.History {
 		excludedIDs = append(excludedIDs, node.Spot.ID)
 	}
+	excludedIDs = append(excludedIDs, tempRejectedIDs...)
 
 	spot, isFallback, err := geo.DrawNextSpot(currentTrip.CurrentCoords[0], currentTrip.CurrentCoords[1], transport, travelTime, excludedIDs)
 	if err != nil {
@@ -117,6 +129,7 @@ func confirmSpot(this js.Value, args []js.Value) any {
 	currentTrip.History = append(currentTrip.History, newNode)
 	// 移動當前座標至抽中景點
 	currentTrip.CurrentCoords = [2]float64{spot.Px, spot.Py}
+	tempRejectedIDs = nil
 
 	storage.SaveTrip(currentTrip)
 	return js.ValueOf(true)
